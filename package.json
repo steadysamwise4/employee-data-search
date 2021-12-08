@@ -19,7 +19,7 @@
   "homepage": "https://github.com/steadysamwise4/employee-data-search#readme",
   "dependencies": {
     "console.table": "^0.10.0",
-    "dotenv": "^10.0.0",
+    "express": "^4.17.1",
     "inquirer": "^8.2.0",
     "mysql2": "^2.3.3"
   }
