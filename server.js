@@ -15,7 +15,7 @@ const promptMenu = async function() {
             type: 'list',
             name: 'menu',
             message: 'Please choose an option below.',
-            choices: ['View all departments', 'View all job titles', 'View all employees', 'Create a department', 'Create a job title', 'Exit']
+            choices: ['View all departments', 'View all job titles', 'View all employees', 'Create a department', 'Create a job title', 'Add an employee', 'Exit']
         }
     ])
     .then(choice => {
@@ -33,6 +33,8 @@ const promptMenu = async function() {
                 addDepartment();
             case 'Create a job title':
                 addJob();
+            case 'Add an employee':
+                addEmployee();
             case 'Exit':
                 process.exit;
                 break;
@@ -159,5 +161,85 @@ const addJob = function() {
 })
 };
 
+const addEmployee = () => {
+    const sql = `SELECT job_title.id, job_title.title FROM job_title`;
+    return db.promise().query(sql)
+    .then(([jobs]) => {
+        let jobChoices = jobs.map(({
+            id,
+            title 
+        }) => ({
+            value: id,
+            name: title 
+        }))
+
+        const sql = `SELECT employee.id, CONCAT(employee.first_name,' ',employee.last_name)
+                     AS manager
+                     FROM employee`;
+        db.promise().query(sql)
+        .then(([managers]) => {
+            let managerChoices = managers.map(({
+                id,
+                manager 
+            }) => ({
+                value: id,
+                name: manager 
+            }));
+
+            inquirer.prompt([
+                {
+                    type: 'input',
+                    name: 'firstName',
+                    message: "Enter the employee's first name:",
+                    validate: firstName => {
+                        if (firstName) {
+                            return true;
+                        } else {
+                            console.log('You must enter a first name!');
+                            return false;
+                        }
+                    }
+                },
+                {
+                    type: 'input',
+                    name: 'lastName',
+                    message: "Enter the employee's last name:",
+                    validate: firstName => {
+                        if (firstName) {
+                            return true;
+                        } else {
+                            console.log('You must enter a last name!');
+                            return false;
+                        }
+                    }
+                },
+                {
+                    type: 'list',
+                    name: 'job',
+                    message: "Choose the employee's job title:",
+                    choices: jobChoices
+                },
+                {
+                    type: 'list',
+                    name: 'manager',
+                    message: "Choose the employee's manager:",
+                    choices: managerChoices
+                }
+            ])
+            .then(({ firstName, lastName, job, manager}) => {
+                const sql = `INSERT INTO employee SET ?`;
+                const params = {first_name: firstName,
+                                last_name: lastName,
+                                job_title_id: job,
+                                manager_id: manager };
+                db.query(sql, params, (err, res) => {
+                    if (err) throw err;
+                    console.log({ job, manager })
+                })
+            })
+            .then(() => viewEmployees())
+        })
+    })
+};
 
 promptMenu();
