@@ -1,26 +1,77 @@
-const express = require('express');
 const db = require('./db/connection');
-const apiRoutes = require('./routes/apiRoutes');
+const inquirer = require('inquirer');
+require('console.table');
 
-const PORT = process.env.PORT || 3001;
-const app = express();
-
-// Express middleware
-app.use(express.urlencoded({ extended: false }));
-app.use(express.json());
-
-app.use('/api', apiRoutes);
-
-// Default response for any other request (Not Found)
-app.use((req, res) => {
-    res.status(404).end();
-});
-
+// const { promptMenu } = require('./prompts/promptMenu');
 // Start server after DB connection
 db.connect(err => {
     if (err) throw err;
     console.log('Database connected.');
-    app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
-    });
 });
+
+const promptMenu = async function() {
+    return inquirer.prompt([
+        {
+            type: 'list',
+            name: 'menu',
+            message: 'Please choose an option below.',
+            choices: ['View all departments', 'View all job titles', 'View all employees', 'Exit']
+        }
+    ])
+    .then(choice => {
+        switch (choice.menu) {
+            case 'View all departments':
+                viewDepartments();
+                break;
+            case 'View all job titles':
+                viewJobs();
+                break;
+            case 'View all employees':
+                viewEmployees();
+                break;
+            case 'Exit':
+                console.log('Ok, cool');
+                process.exit;
+                break;
+    }
+});
+};
+
+// Get all departments
+const viewDepartments = function() {
+    const sql = `SELECT * FROM department`;
+    db.query(sql, (err, rows) => {
+        console.table(rows);
+        promptMenu();
+        });
+    };
+
+    // Get all job_titles
+const viewJobs = function() {
+    const sql = `SELECT job_title.title, job_title.id, department.department_name 
+                 AS department_name, job_title.salary 
+                 FROM job_title
+                 LEFT JOIN department
+                 ON job_title.department_id = department.id`;
+
+    db.query(sql, (err, rows) => {
+        console.table(rows);
+        promptMenu();
+        })
+    };
+
+    const viewEmployees = function() {
+        const sql = `SELECT E.id, E.last_name, E.first_name, J.title AS job_title, D.department_name AS department, J.salary, CONCAT(M.first_name,' ',M.last_name) AS manager
+         FROM employee E
+         JOIN job_title J 
+         ON E.job_title_id = J.id 
+         JOIN department D ON J.department_id = D.id 
+         LEFT JOIN employee M ON E.manager_id = M.id`;
+    
+         db.query(sql, (err, rows) => {
+             console.table(rows);
+             promptMenu();
+             });
+         }; 
+
+promptMenu();

@@ -1,21 +1,16 @@
-const express = require('express');
-const router = express.Router();
+require('console.table');
 const db = require('../../db/connection');
+const { promptMenu } = require('../../prompts/promptMenu');
 const inputCheck = require('../../utils/inputCheck');
 
 // Get all departments
-router.get('/departments', (req, res) => {
+const viewDepartments = function() {
     const sql = `SELECT * FROM department`;
     db.query(sql, (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json({
-            message: 'success',
-            data: rows
+        console.table(rows);
+        promptMenu();
         });
-    });
-});
+    };
 
-module.exports = router;
+
+module.exports = { viewDepartments };
