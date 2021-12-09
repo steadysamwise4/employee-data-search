@@ -6,7 +6,7 @@ require('console.table');
 // Start server after DB connection
 db.connect(err => {
     if (err) throw err;
-    console.log('Database connected.');
+    
 });
 
 const promptMenu = async function() {
@@ -15,7 +15,7 @@ const promptMenu = async function() {
             type: 'list',
             name: 'menu',
             message: 'Please choose an option below.',
-            choices: ['View all departments', 'View all job titles', 'View all employees', 'Exit']
+            choices: ['View all departments', 'View all job titles', 'View all employees', 'Create a department', 'Create a job title', 'Exit']
         }
     ])
     .then(choice => {
@@ -29,8 +29,11 @@ const promptMenu = async function() {
             case 'View all employees':
                 viewEmployees();
                 break;
+            case 'Create a department':
+                addDepartment();
+            case 'Create a job title':
+                addJob();
             case 'Exit':
-                console.log('Ok, cool');
                 process.exit;
                 break;
     }
@@ -73,5 +76,88 @@ const viewJobs = function() {
              promptMenu();
              });
          }; 
+
+const addDepartment = function() {
+    inquirer.prompt([
+        {
+            type: 'input',
+            name: 'department_name',
+            message: 'Enter the name of the department you wish to create:',
+            validate: departmentName => {
+                if (departmentName) {
+                    return true;
+                } else {
+                    console.log('You must enter a department name!');
+                    return false;
+                }
+            }
+        }
+    ])
+    .then(answer => {
+        const sql = `INSERT INTO department (department_name) VALUES (?)`;
+        db.query(sql, answer.department_name);
+        viewDepartments();
+    })
+};
+
+// add a new job title
+const addJob = function() {
+    const sql = `SELECT * FROM department`;
+    return db.promise().query(sql)
+    .then(([departments]) => {
+        let departmentChoices = departments.map(({
+            id,
+            department_name
+        }) => ({
+            name: department_name,
+            value: id
+        }));
+    
+    inquirer.prompt([
+        {
+            type: 'input',
+            name: 'name',
+            message: 'Enter the name of the job title you wish to create:',
+            validate: jobName => {
+                if (jobName) {
+                    return true;
+                } else {
+                    console.log('You must enter a job title!');
+                    return false;
+                }
+            }
+        },
+        {
+            type: 'input',
+            name: 'salary',
+            message: 'Enter the salary for this job: (formatted example: 100000.00)',
+            validate: salary => {
+                if (salary) {
+                    return true;
+                } else {
+                    console.log('You must enter a salary (ex. 100000.00)!');
+                    return false;
+                }
+            }
+        },
+        {
+            type: 'list',
+            name: 'department',
+            message: 'Which department does this job title belong to?',
+            choices: departmentChoices  
+        }
+    ])
+    .then(({ name, salary, department }) => {
+        const sql = `INSERT INTO job_title SET ?`;
+        const params = { title: name, salary: salary, department_id: department };
+
+        db.query(sql, params, (err, res) => {
+                if (err) throw err;
+            }
+        )
+    }).then(() => viewJobs())
+})
+};
+
 
 promptMenu();
