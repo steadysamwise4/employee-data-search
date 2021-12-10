@@ -16,7 +16,8 @@ const promptMenu = async function() {
             name: 'menu',
             message: 'Please choose an option below.',
             choices: ['View all departments', 'View all job titles', 'View all employees', 'Create a department',
-                      'Create a job title', 'Add an employee', "Update an employee's job title", "Update an employee's manager", 'Exit']
+                      'Create a job title', 'Add an employee', "Update an employee's job title", "Update an employee's manager", 
+                      "View employees by manager", 'Exit']
         }
     ])
     .then(choice => {
@@ -32,14 +33,22 @@ const promptMenu = async function() {
                 break;
             case 'Create a department':
                 addDepartment();
+                break;
             case 'Create a job title':
                 addJob();
+                break;
             case 'Add an employee':
                 addEmployee();
+                break;
             case "Update an employee's job title":
                 updateJob();
+                break;
             case "Update an employee's manager":
                 updateManager();
+                break;
+            case "View employees by manager":
+                viewByManager();
+                break;
             case 'Exit':
                 process.exit;
                 break;
@@ -103,6 +112,7 @@ const addDepartment = function() {
     .then(answer => {
         const sql = `INSERT INTO department (department_name) VALUES (?)`;
         db.query(sql, answer.department_name);
+        console.log("Department added to the database!");
         viewDepartments();
     })
 };
@@ -160,6 +170,7 @@ const addJob = function() {
 
         db.query(sql, params, (err, res) => {
                 if (err) throw err;
+                console.log("Job title added to the database!");
             }
         )
     }).then(() => viewJobs())
@@ -239,10 +250,10 @@ const addEmployee = () => {
                                 manager_id: manager };
                 db.query(sql, params, (err, res) => {
                     if (err) throw err;
-                    console.log({ job, manager })
+                    console.log("Employee added to the database!");
+                    promptMenu();
                 })
             })
-            .then(() => viewEmployees())
         })
     })
 };
@@ -292,10 +303,12 @@ const updateJob = () => {
                 const params = [job, employee];
                 db.query(sql, params, (err, res) => {
                     if (err) throw err;
+                    console.log("Employee's job title changed!");
+                    promptMenu();
                 })
             })
-            .then(() => viewEmployees())
-            })
+            
+        })
     })
 };
 
@@ -344,12 +357,57 @@ const updateManager = () => {
             .then(({ employee, manager }) => {
                 const sql = `UPDATE employee SET manager_id = ? WHERE id = ?`;
                 const params = [manager, employee];
-                db.query(sql, params, (err, res) => {
+                db.query(sql, params, (err, row) => {
                     if (err) throw err;
+                    console.log('Manager changed!');
+                    promptMenu();
                 })
             })
-            .then(() => viewEmployees())
-            })
+        })
     })
-}
+};
+
+const viewByManager = () => {
+    const sql = `SELECT employee.id, CONCAT(first_name,' ',last_name)
+                 AS manager 
+                 FROM employee 
+                 WHERE find_in_set
+                 (job_title_id,'1,2,3,4,7,8,9,10,13,14,15,16,19,20,21,22,25')`;
+    db.promise().query(sql)
+    .then(([managers]) => {
+        let managerChoices = managers.map(({
+            id,
+            manager
+        }) => ({
+            value: id,
+            name: manager 
+        }));
+
+        inquirer.prompt([
+            {
+                type: 'list',
+                name: 'manager',
+                message: "Choose to view the employee's of which manager?",
+                choices: managerChoices
+            }
+        ])
+        .then(({ manager }) => {
+            const sql = `SELECT E.id, E.last_name, E.first_name, J.title AS job_title, D.department_name AS department, J.salary, CONCAT(M.first_name,' ',M.last_name) AS manager
+            FROM employee E
+            JOIN job_title J 
+            ON E.job_title_id = J.id 
+            JOIN department D ON J.department_id = D.id 
+            LEFT JOIN employee M ON E.manager_id = M.id
+            WHERE E.manager_id = ?`;
+            const params = [manager];
+            db.query(sql,params, (err, rows) => {
+                if (err) throw err;
+                console.table(rows);
+                promptMenu();
+            })
+        })
+        
+    })
+};
+
 promptMenu();
