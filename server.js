@@ -15,7 +15,7 @@ const promptMenu = async function() {
             type: 'list',
             name: 'menu',
             message: 'Please choose an option below.',
-            choices: ['View all departments', 'View all job titles', 'View all employees', 'Create a department', 'Create a job title', 'Add an employee', 'Exit']
+            choices: ['View all departments', 'View all job titles', 'View all employees', 'Create a department', 'Create a job title', 'Add an employee', "Update an employee's job title", 'Exit']
         }
     ])
     .then(choice => {
@@ -35,6 +35,8 @@ const promptMenu = async function() {
                 addJob();
             case 'Add an employee':
                 addEmployee();
+            case "Update an employee's job title":
+                updateJob();
             case 'Exit':
                 process.exit;
                 break;
@@ -239,6 +241,58 @@ const addEmployee = () => {
             })
             .then(() => viewEmployees())
         })
+    })
+};
+
+const updateJob = () => {
+    const sql = `SELECT employee.id, CONCAT(employee.first_name,' ',employee.last_name) 
+                 AS employee_name, job_title.title AS job_title
+                 FROM employee LEFT JOIN job_title 
+                 ON employee.job_title_id = job_title.id`;
+    db.promise().query(sql)
+    .then(([employees]) => {
+        let employeeChoices = employees.map(({
+            id,
+            employee_name
+        }) => ({
+            value: id,
+            name: employee_name 
+        }));
+
+        const sql = `SELECT job_title.id, job_title.title FROM job_title`;
+        db.promise().query(sql)
+        .then(([jobs]) => {
+            let jobChoices = jobs.map(({
+                id,
+                title 
+            }) => ({
+                value: id,
+                name: title 
+            }));
+
+            inquirer.prompt([
+                {
+                    type: 'list',
+                    name: 'employee',
+                    message: 'Which employee would you like to update?',
+                    choices: employeeChoices
+                },
+                {
+                    type: 'list',
+                    name: 'job',
+                    message: 'Choose a new job title for this employee:',
+                    choices: jobChoices
+                }
+            ])
+            .then(({ employee, job }) => {
+                const sql = `UPDATE employee SET job_title_id = ? WHERE id = ?`;
+                const params = [job, employee];
+                db.query(sql, params, (err, res) => {
+                    if (err) throw err;
+                })
+            })
+            .then(() => viewEmployees())
+            })
     })
 };
 
