@@ -2,13 +2,10 @@ const db = require('./db/connection');
 const inquirer = require('inquirer');
 require('console.table');
 
-// const { promptMenu } = require('./prompts/promptMenu');
-// Start server after DB connection
 db.connect(err => {
-    if (err) throw err;
-    
+    if (err) throw err;    
 });
-
+// Give User a list of options
 const promptMenu = async function() {
     return inquirer.prompt([
         {
@@ -17,7 +14,8 @@ const promptMenu = async function() {
             message: 'Please choose an option below.',
             choices: ['View all departments', 'View all job titles', 'View all employees', 'Create a department',
                       'Create a job title', 'Add an employee', "Update an employee's job title", "Update an employee's manager", 
-                      "View employees by manager", 'View employees by department', 'Delete a department', 'Exit']
+                      "View employees by manager", 'View employees by department', 'Delete a department',
+                      'Delete a job title', 'Remove employee', 'View total utilized budget by department', 'Exit']
         }
     ])
     .then(choice => {
@@ -55,7 +53,17 @@ const promptMenu = async function() {
             case 'Delete a department':
                 destroyDepartment();
                 break;
+            case 'Delete a job title':
+                destroyjobTitle();
+                break;
+            case 'Remove employee':
+                destroyEmployeeData();
+                break;
+            case 'View total utilized budget by department':
+                viewDepartmentBudget();
+                break;
             case 'Exit':
+                console.log("Push 'Ctrl C' to disconnect from the server completely");
                 process.exit;
                 break;
     }
@@ -73,7 +81,7 @@ const viewDepartments = function() {
 
     // Get all job_titles
 const viewJobs = function() {
-    const sql = `SELECT job_title.title, job_title.id, department.department_name 
+    const sql = `SELECT job_title.title AS job_title, job_title.id, department.department_name 
                  AS department_name, job_title.salary 
                  FROM job_title
                  LEFT JOIN department
@@ -98,7 +106,7 @@ const viewJobs = function() {
              promptMenu();
              });
          }; 
-
+// Add a department
 const addDepartment = function() {
     inquirer.prompt([
         {
@@ -182,7 +190,7 @@ const addJob = function() {
     }).then(() => viewJobs())
 })
 };
-
+// Add an employee
 const addEmployee = () => {
     const sql = `SELECT job_title.id, job_title.title FROM job_title`;
     return db.promise().query(sql)
@@ -263,7 +271,7 @@ const addEmployee = () => {
         })
     })
 };
-
+// Change an employee's job title
 const updateJob = () => {
     const sql = `SELECT employee.id, CONCAT(employee.first_name,' ',employee.last_name) 
                  AS employee_name, job_title.title AS job_title
@@ -317,7 +325,7 @@ const updateJob = () => {
         })
     })
 };
-
+// Change an employee's manager
 const updateManager = () => {
     const sql = `SELECT employee.id, CONCAT(employee.first_name,' ',employee.last_name) 
                  AS employee_name, job_title.title AS job_title
@@ -372,7 +380,7 @@ const updateManager = () => {
         })
     })
 };
-
+// View a list employees for each manager
 const viewByManager = () => {
     const sql = `SELECT employee.id, CONCAT(first_name,' ',last_name)
                  AS manager 
@@ -415,7 +423,7 @@ const viewByManager = () => {
         
     })
 };
-
+// View a list of employees in each department
 const viewByDepartment = () => {
     const sql = `SELECT * FROM department`;
     return db.promise().query(sql)
@@ -453,7 +461,7 @@ const viewByDepartment = () => {
         })
     })
 };
-
+// Remove a department from the database
 const destroyDepartment = () => {
     const sql = `SELECT * FROM department`;
     return db.promise().query(sql)
@@ -485,5 +493,106 @@ const destroyDepartment = () => {
         })
     })
 };
+// Remove a job title from the database
+const destroyjobTitle = () => {
+    const sql = `SELECT job_title.id, job_title.title FROM job_title`;
+    db.promise().query(sql)
+    .then(([jobs]) => {
+        let jobChoices = jobs.map(({
+            id,
+            title 
+        }) => ({
+            value: id,
+            name: title 
+        }));
+
+        inquirer.prompt([
+            {
+                type: 'list',
+                name: 'job',
+                message: "Choose to delete which job title?",
+                choices: jobChoices
+            }
+        ])
+        .then(({ job }) => {
+            const sql = `DELETE FROM job_title WHERE id = ?`;
+            const params = [job];
+            db.query(sql, params, (err, rows) => {
+                if (err) throw err;
+                console.log('Job title deleted!');
+                promptMenu();
+            })
+        })
+    })
+};
+// Remove an employee from the database
+const destroyEmployeeData = () => {
+    const sql = `SELECT employee.id, CONCAT(employee.first_name,' ',employee.last_name) 
+                 AS employee_name, job_title.title AS job_title
+                 FROM employee LEFT JOIN job_title 
+                 ON employee.job_title_id = job_title.id`;
+    db.promise().query(sql)
+    .then(([employees]) => {
+        let employeeChoices = employees.map(({
+            id,
+            employee_name
+        }) => ({
+            value: id,
+            name: employee_name 
+        }));
+
+        inquirer.prompt([
+            {
+                type: 'list',
+                name: 'employee',
+                message: "Choose to remove which employee from the database?",
+                choices: employeeChoices
+            }
+        ])
+        .then(({ data }) => {
+            const sql = `DELETE FROM employee WHERE id = ?`;
+            const params = [data];
+            db.query(sql, params, (err, rows) => {
+                if (err) throw err;
+                console.log('Employee data deleted!');
+                promptMenu();
+            })
+        })
+    })
+};
+// View each departments total utilized budget
+const viewDepartmentBudget = () => {
+    const sql = `SELECT * FROM department`;
+    return db.promise().query(sql)
+    .then(([departments]) => {
+        let departmentChoices = departments.map(({
+            id,
+            department_name
+        }) => ({
+            name: department_name,
+            value: id
+        }));   
     
+            inquirer.prompt([
+                {
+                    type: 'list',
+                    name: 'budget',
+                    message: "Choose to a department to view it's total utilized budget?",
+                    choices: departmentChoices
+                }
+            ])
+            .then(({ budget }) => {
+                const sql = `SELECT D.department_name AS department, SUM(J.salary) AS Total_utilized_budget FROM employee E
+                JOIN job_title J ON E.job_title_id = J.id JOIN department D ON J.department_id = D.id
+                WHERE J.department_id = ?`;
+                const params = [budget];
+                db.query(sql, params, (err, rows) => {
+                    if (err) throw err; 
+                    console.table(rows);                   
+                    promptMenu();
+                })
+            })
+        })
+    };    
+
 promptMenu();
