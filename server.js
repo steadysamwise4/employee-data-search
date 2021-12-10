@@ -17,7 +17,7 @@ const promptMenu = async function() {
             message: 'Please choose an option below.',
             choices: ['View all departments', 'View all job titles', 'View all employees', 'Create a department',
                       'Create a job title', 'Add an employee', "Update an employee's job title", "Update an employee's manager", 
-                      "View employees by manager", 'View employees by department', 'Exit']
+                      "View employees by manager", 'View employees by department', 'Delete a department', 'Exit']
         }
     ])
     .then(choice => {
@@ -51,6 +51,9 @@ const promptMenu = async function() {
                 break;
             case 'View employees by department':
                 viewByDepartment();
+                break;
+            case 'Delete a department':
+                destroyDepartment();
                 break;
             case 'Exit':
                 process.exit;
@@ -449,6 +452,38 @@ const viewByDepartment = () => {
             })
         })
     })
-}
+};
+
+const destroyDepartment = () => {
+    const sql = `SELECT * FROM department`;
+    return db.promise().query(sql)
+    .then(([departments]) => {
+        let departmentChoices = departments.map(({
+            id,
+            department_name
+        }) => ({
+            name: department_name,
+            value: id
+        }));
+
+        inquirer.prompt([
+            {
+                type: 'list',
+                name: 'department',
+                message: "Choose to delete which department?",
+                choices: departmentChoices
+            }
+        ])
+        .then(({ department }) => {
+            const sql = `DELETE FROM department WHERE id = ?`;
+            const params = [department];
+            db.query(sql,params, (err, rows) => {
+                if (err) throw err;
+                console.log('Department deleted!');
+                promptMenu();
+            })
+        })
+    })
+};
     
 promptMenu();
