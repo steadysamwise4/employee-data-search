@@ -15,7 +15,8 @@ const promptMenu = async function() {
             type: 'list',
             name: 'menu',
             message: 'Please choose an option below.',
-            choices: ['View all departments', 'View all job titles', 'View all employees', 'Create a department', 'Create a job title', 'Add an employee', "Update an employee's job title", 'Exit']
+            choices: ['View all departments', 'View all job titles', 'View all employees', 'Create a department',
+                      'Create a job title', 'Add an employee', "Update an employee's job title", "Update an employee's manager", 'Exit']
         }
     ])
     .then(choice => {
@@ -37,6 +38,8 @@ const promptMenu = async function() {
                 addEmployee();
             case "Update an employee's job title":
                 updateJob();
+            case "Update an employee's manager":
+                updateManager();
             case 'Exit':
                 process.exit;
                 break;
@@ -296,4 +299,57 @@ const updateJob = () => {
     })
 };
 
+const updateManager = () => {
+    const sql = `SELECT employee.id, CONCAT(employee.first_name,' ',employee.last_name) 
+                 AS employee_name, job_title.title AS job_title
+                 FROM employee LEFT JOIN job_title 
+                 ON employee.job_title_id = job_title.id`;
+    db.promise().query(sql)
+    .then(([employees]) => {
+        let employeeChoices = employees.map(({
+            id,
+            employee_name
+        }) => ({
+            value: id,
+            name: employee_name 
+        }));
+
+        const sql = `SELECT employee.id, CONCAT(employee.first_name,' ',employee.last_name)
+                     AS manager
+                     FROM employee`;
+        db.promise().query(sql)
+        .then(([managers]) => {
+            let managerChoices = managers.map(({
+                id,
+                manager 
+            }) => ({
+                value: id,
+                name: manager 
+            }));
+
+            inquirer.prompt([
+                {
+                    type: 'list',
+                    name: 'employee',
+                    message: 'Which employee would you like to update?',
+                    choices: employeeChoices
+                },
+                {
+                    type: 'list',
+                    name: 'manager',
+                    message: 'Choose a new manager for this employee:',
+                    choices: managerChoices
+                }
+            ])
+            .then(({ employee, manager }) => {
+                const sql = `UPDATE employee SET manager_id = ? WHERE id = ?`;
+                const params = [manager, employee];
+                db.query(sql, params, (err, res) => {
+                    if (err) throw err;
+                })
+            })
+            .then(() => viewEmployees())
+            })
+    })
+}
 promptMenu();
