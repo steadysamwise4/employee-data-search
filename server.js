@@ -17,7 +17,7 @@ const promptMenu = async function() {
             message: 'Please choose an option below.',
             choices: ['View all departments', 'View all job titles', 'View all employees', 'Create a department',
                       'Create a job title', 'Add an employee', "Update an employee's job title", "Update an employee's manager", 
-                      "View employees by manager", 'Exit']
+                      "View employees by manager", 'View employees by department', 'Exit']
         }
     ])
     .then(choice => {
@@ -48,6 +48,9 @@ const promptMenu = async function() {
                 break;
             case "View employees by manager":
                 viewByManager();
+                break;
+            case 'View employees by department':
+                viewByDepartment();
                 break;
             case 'Exit':
                 process.exit;
@@ -387,7 +390,7 @@ const viewByManager = () => {
             {
                 type: 'list',
                 name: 'manager',
-                message: "Choose to view the employee's of which manager?",
+                message: "Choose to view the employees of which manager?",
                 choices: managerChoices
             }
         ])
@@ -410,4 +413,42 @@ const viewByManager = () => {
     })
 };
 
+const viewByDepartment = () => {
+    const sql = `SELECT * FROM department`;
+    return db.promise().query(sql)
+    .then(([departments]) => {
+        let departmentChoices = departments.map(({
+            id,
+            department_name
+        }) => ({
+            name: department_name,
+            value: id
+        }));
+
+        inquirer.prompt([
+            {
+                type: 'list',
+                name: 'department',
+                message: "Choose to view the employees of which department?",
+                choices: departmentChoices
+            }
+        ])
+        .then(({ department }) => {
+            const sql = `SELECT E.id, E.last_name, E.first_name, J.title AS job_title, D.department_name AS department, J.salary, CONCAT(M.first_name,' ',M.last_name) AS manager
+            FROM employee E
+            JOIN job_title J 
+            ON E.job_title_id = J.id 
+            JOIN department D ON J.department_id = D.id 
+            LEFT JOIN employee M ON E.manager_id = M.id
+            WHERE J.department_id = ?`;
+            const params = [department];
+            db.query(sql,params, (err, rows) => {
+                if (err) throw err;
+                console.table(rows);
+                promptMenu();
+            })
+        })
+    })
+}
+    
 promptMenu();
