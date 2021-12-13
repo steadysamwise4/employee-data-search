@@ -1,10 +1,16 @@
 const db = require('./db/connection');
 const inquirer = require('inquirer');
 require('console.table');
+const { printTable } = require('console-table-printer');
 
+const Dept = require('./db/db');
+// Dept.getDepartments().then(([rows]) => {
+//     printTable(rows);
+// })
 db.connect(err => {
     if (err) throw err;    
 });
+
 // Give User a list of options
 const promptMenu = async function() {
     return inquirer.prompt([
@@ -74,7 +80,7 @@ const promptMenu = async function() {
 const viewDepartments = function() {
     const sql = `SELECT * FROM department`;
     db.query(sql, (err, rows) => {
-        console.table(rows);
+        printTable(rows);
         promptMenu();
         });
     };
@@ -88,7 +94,7 @@ const viewJobs = function() {
                  ON job_title.department_id = department.id`;
 
     db.query(sql, (err, rows) => {
-        console.table(rows);
+        printTable(rows);
         promptMenu();
         })
     };
@@ -102,7 +108,7 @@ const viewJobs = function() {
          LEFT JOIN employee M ON E.manager_id = M.id`;
     
          db.query(sql, (err, rows) => {
-             console.table(rows);
+             printTable(rows);
              promptMenu();
              });
          }; 
@@ -122,13 +128,18 @@ const addDepartment = function() {
                 }
             }
         }
-    ])
-    .then(answer => {
-        const sql = `INSERT INTO department (department_name) VALUES (?)`;
-        db.query(sql, answer.department_name);
-        console.log("Department added to the database!");
-        viewDepartments();
+    ]).then(answers => {
+        Dept.addDepartment(answers.department_name).then(([rows]) => {
+            console.log('Department created!');
+            viewDepartments();
+        })
     })
+    // .then(answer => {
+    //     const sql = `INSERT INTO department (department_name) VALUES (?)`;
+    //     db.query(sql, answer.department_name);
+    //     console.log("Department added to the database!");
+    //     viewDepartments();
+    // })
 };
 
 // add a new job title
@@ -416,7 +427,7 @@ const viewByManager = () => {
             const params = [manager];
             db.query(sql,params, (err, rows) => {
                 if (err) throw err;
-                console.table(rows);
+                printTable(rows);
                 promptMenu();
             })
         })
@@ -455,7 +466,7 @@ const viewByDepartment = () => {
             const params = [department];
             db.query(sql,params, (err, rows) => {
                 if (err) throw err;
-                console.table(rows);
+                printTable(rows);
                 promptMenu();
             })
         })
@@ -528,9 +539,8 @@ const destroyjobTitle = () => {
 // Remove an employee from the database
 const destroyEmployeeData = () => {
     const sql = `SELECT employee.id, CONCAT(employee.first_name,' ',employee.last_name) 
-                 AS employee_name, job_title.title AS job_title
-                 FROM employee LEFT JOIN job_title 
-                 ON employee.job_title_id = job_title.id`;
+                 AS employee_name
+                 FROM employee `;
     db.promise().query(sql)
     .then(([employees]) => {
         let employeeChoices = employees.map(({
@@ -540,7 +550,7 @@ const destroyEmployeeData = () => {
             value: id,
             name: employee_name 
         }));
-
+        
         inquirer.prompt([
             {
                 type: 'list',
@@ -549,9 +559,10 @@ const destroyEmployeeData = () => {
                 choices: employeeChoices
             }
         ])
-        .then(({ data }) => {
+        .then(({ employee }) => {
             const sql = `DELETE FROM employee WHERE id = ?`;
-            const params = [data];
+            const params = [employee];
+            console.log(employee);
             db.query(sql, params, (err, rows) => {
                 if (err) throw err;
                 console.log('Employee data deleted!');
@@ -588,7 +599,7 @@ const viewDepartmentBudget = () => {
                 const params = [budget];
                 db.query(sql, params, (err, rows) => {
                     if (err) throw err; 
-                    console.table(rows);                   
+                    printTable(rows);                   
                     promptMenu();
                 })
             })
